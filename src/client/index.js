@@ -136,9 +136,11 @@ function _useSessionHook(session) {
         // If this call was invoked via a storage event (i.e. another window) then
         // tell getSession not to trigger an event when it calls to avoid an
         // infinate loop.
-        const newClientSessionData = await getSession({
-          triggerEvent: !triggeredByStorageEvent,
-        })
+        const newClientSessionData = await getSession(
+          { triggerEvent: !triggeredByStorageEvent },
+          // fail over to the current session if the update wasn't triggered by a storage event or max age timeout
+          !triggeredByStorageEvent && (clientMaxAge === 0 || currentTime < clientLastSync + clientMaxAge) ? clientSession : null
+        )
 
         // Save session state internally, just so we can track that we've checked
         // if a session exists at least once.
@@ -158,9 +160,10 @@ function _useSessionHook(session) {
   return [data, loading]
 }
 
-export async function getSession(ctx) {
-  const session = await _fetchData("session", ctx)
-  if (ctx?.triggerEvent ?? true) {
+export async function getSession(ctx, fallback = null) {
+  const session = await _fetchData("session", ctx, fallback)
+  // do not broadcast storage event when _fetchData fails
+  if ((ctx?.triggerEvent ?? true) && (session !== fallback)) {
     broadcast.post({ event: "session", data: { trigger: "getSession" } })
   }
   return session
@@ -314,7 +317,7 @@ export function Provider({ children, session, options }) {
  * work seemlessly in getInitialProps() on server side
  * pages *and* in _app.js.
  */
-async function _fetchData(path, { ctx, req = ctx?.req } = {}) {
+async function _fetchData(path, { ctx, req = ctx?.req } = {}, fallback = null) {
   try {
     const baseUrl = await _apiBaseUrl()
     const options = req ? { headers: { cookie: req.headers.cookie } } : {}
@@ -324,7 +327,7 @@ async function _fetchData(path, { ctx, req = ctx?.req } = {}) {
     return Object.keys(data).length > 0 ? data : null // Return null if data empty
   } catch (error) {
     logger.error("CLIENT_FETCH_ERROR", path, error)
-    return null
+    return fallback
   }
 }
 
