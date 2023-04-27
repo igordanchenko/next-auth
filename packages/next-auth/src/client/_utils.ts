@@ -33,7 +33,7 @@ export async function fetchData<T = any>(
   path: string,
   __NEXTAUTH: AuthClientConfig,
   logger: LoggerInstance,
-  { ctx, req = ctx?.req }: CtxOrReq = {}
+  { ctx, req = ctx?.req, fallback = null }: CtxOrReq & {fallback?: T | null} = {}
 ): Promise<T | null> {
   const url = `${apiBaseUrl(__NEXTAUTH)}/${path}`
   try {
@@ -55,7 +55,7 @@ export async function fetchData<T = any>(
     return Object.keys(data).length > 0 ? data : null // Return null if data empty
   } catch (error) {
     logger.error("CLIENT_FETCH_ERROR", { error: error as Error, url })
-    return null
+    return fallback
   }
 }
 

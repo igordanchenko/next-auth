@@ -156,6 +156,7 @@ export type GetSessionParams = CtxOrReq & {
   event?: "storage" | "timer" | "hidden" | string
   triggerEvent?: boolean
   broadcast?: boolean
+  fallback?: Session
 }
 
 export async function getSession(params?: GetSessionParams) {
@@ -165,7 +166,7 @@ export async function getSession(params?: GetSessionParams) {
     logger,
     params
   )
-  if (params?.broadcast ?? true) {
+  if ((params?.broadcast ?? true) && (session !== params?.fallback)) {
     broadcast.post({ event: "session", data: { trigger: "getSession" } })
   }
   return session
@@ -396,7 +397,7 @@ export function SessionProvider(props: SessionProviderProps) {
 
         // An event or session staleness occurred, update the client session.
         __NEXTAUTH._lastSync = now()
-        __NEXTAUTH._session = await getSession()
+        __NEXTAUTH._session = await getSession({fallback: !storageEvent ? __NEXTAUTH._session : undefined})
         setSession(__NEXTAUTH._session)
       } catch (error) {
         logger.error("CLIENT_SESSION_ERROR", error as Error)
