@@ -228,11 +228,17 @@ export async function signIn<
   const providers = await getProviders()
 
   if (!providers) {
+    if (!redirect) {
+      return { error: "Unable to obtain authentication providers" } as any
+    }
     window.location.href = `${baseUrl}/error`
     return
   }
 
   if (!provider || !(provider in providers)) {
+    if (!redirect) {
+      return { error: "Provider not found" } as any
+    }
     window.location.href = `${baseUrl}/signin?${new URLSearchParams({
       callbackUrl,
     })}`
